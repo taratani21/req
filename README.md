@@ -112,8 +112,9 @@ Authorization = "Bearer {{token}}"
 Variables resolve in this order (highest priority first):
 
 1. `--var` flags on the command line
-2. Extracted values from previous chain steps
-3. Environment file loaded via `--env`
+2. `--variant` vars (see [Variants](#variants))
+3. Extracted values from previous chain steps
+4. Environment file loaded via `--env`
 
 ```bash
 # --var always wins
