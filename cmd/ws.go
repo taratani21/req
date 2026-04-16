@@ -55,8 +55,14 @@ func runWebSocket(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Resolve variables
-	resolved := interpolate.ResolveVars(cliVars, nil, nil, envVars)
+	// Look up the selected variant, if any
+	variantVars, err := resolveVariant(req, variantName, false)
+	if err != nil {
+		return err
+	}
+
+	// Resolve variables (cli > variant > extracted > env, no extracted for ws)
+	resolved := interpolate.ResolveVars(cliVars, variantVars, nil, envVars)
 
 	// Interpolate URL and headers
 	wsURL, err := interpolate.Interpolate(req.URL, resolved)

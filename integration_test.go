@@ -1031,3 +1031,51 @@ role = "admin"
 		t.Errorf("role = %v, want [custom] (--var should override --variant)", query["role"])
 	}
 }
+
+func TestWS_Variant(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	var mu sync.Mutex
+	var seenQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seenQuery = r.URL.RawQuery
+		mu.Unlock()
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		conn.Close()
+	}))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "ws.toml"), fmt.Sprintf(`
+name = "WS variant"
+type = "websocket"
+url = "%s/chan"
+
+[query]
+role = "{{role}}"
+
+[variants.admin]
+role = "admin"
+
+[variants.viewer]
+role = "viewer"
+`, wsURL))
+
+	_, stderr, exitCode := runReq("ws", filepath.Join(dir, "ws.toml"), "--no-interactive", "--variant", "viewer")
+	if exitCode != 0 {
+		t.Fatalf("exit code = %d, stderr: %s", exitCode, stderr)
+	}
+
+	mu.Lock()
+	got := seenQuery
+	mu.Unlock()
+	if !strings.Contains(got, "role=viewer") {
+		t.Errorf("expected role=viewer in query, got: %q", got)
+	}
+}
