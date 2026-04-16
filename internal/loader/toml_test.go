@@ -1,0 +1,150 @@
+package loader
+
+import (
+	"testing"
+)
+
+func TestLoadRequest_SimpleGet(t *testing.T) {
+	req, err := LoadRequest("../../testdata/requests/simple-get.toml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.Name != "Simple GET" {
+		t.Errorf("name = %q, want %q", req.Name, "Simple GET")
+	}
+	if req.Type != "http" {
+		t.Errorf("type = %q, want %q", req.Type, "http")
+	}
+	if req.Method != "GET" {
+		t.Errorf("method = %q, want %q", req.Method, "GET")
+	}
+	if req.URL != "https://api.example.com/health" {
+		t.Errorf("url = %q, want %q", req.URL, "https://api.example.com/health")
+	}
+}
+
+func TestLoadRequest_PostWithBody(t *testing.T) {
+	req, err := LoadRequest("../../testdata/requests/post-with-body.toml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.Method != "POST" {
+		t.Errorf("method = %q, want %q", req.Method, "POST")
+	}
+	if req.Headers["Content-Type"] != "application/json" {
+		t.Errorf("Content-Type = %q, want %q", req.Headers["Content-Type"], "application/json")
+	}
+	if req.Headers["Authorization"] != "Bearer abc123" {
+		t.Errorf("Authorization = %q, want %q", req.Headers["Authorization"], "Bearer abc123")
+	}
+	if req.Query["verbose"] != "true" {
+		t.Errorf("query verbose = %q, want %q", req.Query["verbose"], "true")
+	}
+	if req.Body.Data == "" {
+		t.Error("body data should not be empty")
+	}
+}
+
+func TestLoadRequest_WithVariables(t *testing.T) {
+	req, err := LoadRequest("../../testdata/requests/with-vars.toml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.URL != "{{base_url}}/users/{{user_id}}" {
+		t.Errorf("url = %q, want %q", req.URL, "{{base_url}}/users/{{user_id}}")
+	}
+	if req.Headers["Authorization"] != "Bearer {{token}}" {
+		t.Errorf("Authorization = %q, want %q", req.Headers["Authorization"], "Bearer {{token}}")
+	}
+}
+
+func TestLoadRequest_WebSocket(t *testing.T) {
+	req, err := LoadRequest("../../testdata/requests/ws-simple.toml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.Type != "websocket" {
+		t.Errorf("type = %q, want %q", req.Type, "websocket")
+	}
+	if req.URL != "wss://ws.example.com/events" {
+		t.Errorf("url = %q, want %q", req.URL, "wss://ws.example.com/events")
+	}
+}
+
+func TestLoadRequest_WebSocketWithMessages(t *testing.T) {
+	req, err := LoadRequest("../../testdata/requests/ws-with-messages.toml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(req.Messages) != 2 {
+		t.Fatalf("messages count = %d, want 2", len(req.Messages))
+	}
+	if req.Messages[0].AwaitResponse != true {
+		t.Error("first message should have await_response = true")
+	}
+	if req.Messages[1].AwaitResponse != false {
+		t.Error("second message should have await_response = false")
+	}
+}
+
+func TestLoadRequest_FileNotFound(t *testing.T) {
+	_, err := LoadRequest("../../testdata/requests/nonexistent.toml")
+	if err == nil {
+		t.Error("expected error for missing file")
+	}
+}
+
+func TestLoadEnv(t *testing.T) {
+	env, err := LoadEnv("../../testdata/envs/test.toml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if env["base_url"] != "https://api.example.com" {
+		t.Errorf("base_url = %q, want %q", env["base_url"], "https://api.example.com")
+	}
+	if env["token"] != "test-token-123" {
+		t.Errorf("token = %q, want %q", env["token"], "test-token-123")
+	}
+	if env["user_id"] != "42" {
+		t.Errorf("user_id = %q, want %q", env["user_id"], "42")
+	}
+}
+
+func TestLoadEnv_FileNotFound(t *testing.T) {
+	_, err := LoadEnv("../../testdata/envs/nonexistent.toml")
+	if err == nil {
+		t.Error("expected error for missing file")
+	}
+}
+
+func TestLoadChain(t *testing.T) {
+	chain, err := LoadChain("../../testdata/requests/chain-simple.chain.toml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if chain.Name != "Login and get profile" {
+		t.Errorf("name = %q, want %q", chain.Name, "Login and get profile")
+	}
+	if len(chain.Steps) != 2 {
+		t.Fatalf("steps count = %d, want 2", len(chain.Steps))
+	}
+	if chain.Steps[0].Request != "auth/login.toml" {
+		t.Errorf("step 0 request = %q, want %q", chain.Steps[0].Request, "auth/login.toml")
+	}
+	if chain.Steps[0].Extract["token"] != "access_token" {
+		t.Errorf("step 0 extract token = %q, want %q", chain.Steps[0].Extract["token"], "access_token")
+	}
+	if chain.Steps[1].Request != "users/get-profile.toml" {
+		t.Errorf("step 1 request = %q, want %q", chain.Steps[1].Request, "users/get-profile.toml")
+	}
+	if chain.Steps[1].Extract != nil && len(chain.Steps[1].Extract) != 0 {
+		t.Errorf("step 1 should have no extract, got %v", chain.Steps[1].Extract)
+	}
+}
+
+func TestLoadChain_FileNotFound(t *testing.T) {
+	_, err := LoadChain("../../testdata/requests/nonexistent.chain.toml")
+	if err == nil {
+		t.Error("expected error for missing file")
+	}
+}

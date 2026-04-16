@@ -1,0 +1,19 @@
+name = "Create user"
+type = "http"
+method = "POST"
+url = "https://api.example.com/users"
+
+[headers]
+Content-Type = "application/json"
+Authorization = "Bearer abc123"
+
+[query]
+verbose = "true"
+
+[body]
+data = '''
+{
+  "name": "John Doe",
+  "email": "john@example.com"
+}
+'''

@@ -1,0 +1,11 @@
+name = "WebSocket with messages"
+type = "websocket"
+url = "wss://ws.example.com/events"
+
+[[messages]]
+payload = '{"type": "subscribe", "channel": "updates"}'
+await_response = true
+
+[[messages]]
+payload = '{"type": "ping"}'
+await_response = false

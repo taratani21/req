@@ -1,0 +1,3 @@
+base_url = "https://api.example.com"
+token = "test-token-123"
+user_id = "42"

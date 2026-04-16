@@ -1,0 +1,6 @@
+name = "Simple WebSocket"
+type = "websocket"
+url = "wss://ws.example.com/events"
+
+[headers]
+Authorization = "Bearer abc123"

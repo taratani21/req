@@ -1,0 +1,9 @@
+name = "Login and get profile"
+
+[[steps]]
+request = "auth/login.toml"
+[steps.extract]
+token = "access_token"
+
+[[steps]]
+request = "users/get-profile.toml"

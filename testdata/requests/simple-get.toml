@@ -1,0 +1,4 @@
+name = "Simple GET"
+type = "http"
+method = "GET"
+url = "https://api.example.com/health"

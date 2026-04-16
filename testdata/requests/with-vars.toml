@@ -1,0 +1,7 @@
+name = "Get user profile"
+type = "http"
+method = "GET"
+url = "{{base_url}}/users/{{user_id}}"
+
+[headers]
+Authorization = "Bearer {{token}}"
