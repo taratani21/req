@@ -1144,3 +1144,27 @@ request = "get-user.toml"
 		t.Errorf("id = %v, want 42 (variant should supply user_id to step 2)", resp["id"])
 	}
 }
+
+func TestWS_UnknownVariant(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "ws.toml"), `
+name = "WS unknown variant"
+type = "websocket"
+url = "ws://example.com/chan"
+
+[variants.admin]
+role = "admin"
+`)
+
+	_, stderr, exitCode := runReq("ws", filepath.Join(dir, "ws.toml"),
+		"--no-interactive", "--variant", "bogus")
+	if exitCode == 0 {
+		t.Fatal("expected non-zero exit code for unknown variant")
+	}
+	if !strings.Contains(stderr, "unknown variant") {
+		t.Errorf("stderr should mention unknown variant, got: %s", stderr)
+	}
+	if !strings.Contains(stderr, "admin") {
+		t.Errorf("stderr should list available variants, got: %s", stderr)
+	}
+}

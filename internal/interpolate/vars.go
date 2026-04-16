@@ -35,7 +35,7 @@ func Interpolate(input string, vars map[string]string) (string, error) {
 	})
 
 	if len(unresolved) > 0 {
-		return "", fmt.Errorf("unresolved variable %q\nhint: set it with --var %s=<value> or define it in your env file",
+		return "", fmt.Errorf("unresolved variable %q\nhint: set it with --var %s=<value>, select a --variant that defines it, or define it in your env file",
 			unresolved[0], unresolved[0])
 	}
 

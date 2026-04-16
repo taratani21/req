@@ -71,11 +71,9 @@ func runChain(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("step %d: chain only supports http requests, got %q", i+1, req.Type)
 		}
 
-		// Look up the selected variant in this step's file (silent skip if absent)
-		variantVars, err := resolveVariant(req, variantName, true)
-		if err != nil {
-			return fmt.Errorf("step %d: %w", i+1, err)
-		}
+		// Look up the selected variant in this step's file (silent skip if absent).
+		// resolveVariant with silent=true never returns an error.
+		variantVars, _ := resolveVariant(req, variantName, true)
 
 		// Resolve variables for this step (cli > variant > extracted > env)
 		resolved := interpolate.ResolveVars(cliVars, variantVars, extracted, envVars)
