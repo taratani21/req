@@ -72,7 +72,7 @@ func runChain(cmd *cobra.Command, args []string) error {
 		}
 
 		// Resolve variables for this step
-		resolved := interpolate.ResolveVars(cliVars, extracted, envVars)
+		resolved := interpolate.ResolveVars(cliVars, nil, extracted, envVars)
 
 		// Interpolate all fields
 		url, headers, query, body, err := interpolate.InterpolateRequest(

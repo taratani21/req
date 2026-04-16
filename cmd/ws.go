@@ -56,7 +56,7 @@ func runWebSocket(cmd *cobra.Command, args []string) error {
 	}
 
 	// Resolve variables
-	resolved := interpolate.ResolveVars(cliVars, nil, envVars)
+	resolved := interpolate.ResolveVars(cliVars, nil, nil, envVars)
 
 	// Interpolate URL and headers
 	wsURL, err := interpolate.Interpolate(req.URL, resolved)

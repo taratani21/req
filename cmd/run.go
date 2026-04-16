@@ -52,7 +52,7 @@ func runRequest(cmd *cobra.Command, args []string) error {
 	}
 
 	// Resolve variables (cli > env, no extracted vars for single run)
-	resolved := interpolate.ResolveVars(cliVars, nil, envVars)
+	resolved := interpolate.ResolveVars(cliVars, nil, nil, envVars)
 
 	// Interpolate all fields
 	url, headers, query, body, err := interpolate.InterpolateRequest(

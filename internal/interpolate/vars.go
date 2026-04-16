@@ -42,13 +42,16 @@ func Interpolate(input string, vars map[string]string) (string, error) {
 	return result, nil
 }
 
-func ResolveVars(cliVars, extracted, envVars map[string]string) map[string]string {
+func ResolveVars(cliVars, variantVars, extracted, envVars map[string]string) map[string]string {
 	resolved := make(map[string]string)
 
 	for k, v := range envVars {
 		resolved[k] = v
 	}
 	for k, v := range extracted {
+		resolved[k] = v
+	}
+	for k, v := range variantVars {
 		resolved[k] = v
 	}
 	for k, v := range cliVars {

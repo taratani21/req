@@ -74,13 +74,17 @@ func TestFindVariables(t *testing.T) {
 
 func TestResolveVars_Priority(t *testing.T) {
 	cliVars := map[string]string{"token": "cli-token", "id": "cli-id"}
-	extracted := map[string]string{"token": "extracted-token", "name": "extracted-name"}
-	envVars := map[string]string{"token": "env-token", "name": "env-name", "base": "env-base"}
+	variantVars := map[string]string{"token": "variant-token", "region": "variant-region"}
+	extracted := map[string]string{"token": "extracted-token", "name": "extracted-name", "region": "extracted-region"}
+	envVars := map[string]string{"token": "env-token", "name": "env-name", "base": "env-base", "region": "env-region"}
 
-	resolved := ResolveVars(cliVars, extracted, envVars)
+	resolved := ResolveVars(cliVars, variantVars, extracted, envVars)
 
 	if resolved["token"] != "cli-token" {
-		t.Errorf("token = %q, want %q (cli wins)", resolved["token"], "cli-token")
+		t.Errorf("token = %q, want %q (cli wins over variant/extracted/env)", resolved["token"], "cli-token")
+	}
+	if resolved["region"] != "variant-region" {
+		t.Errorf("region = %q, want %q (variant wins over extracted/env)", resolved["region"], "variant-region")
 	}
 	if resolved["name"] != "extracted-name" {
 		t.Errorf("name = %q, want %q (extracted wins over env)", resolved["name"], "extracted-name")
