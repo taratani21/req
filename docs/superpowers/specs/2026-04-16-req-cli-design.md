@@ -15,6 +15,7 @@ The tool is designed to integrate naturally with a Neovim + git workflow, includ
 - Support environment files for variable interpolation (kept out of git via `.git/info/exclude`)
 - Support interactive WebSocket sessions (connect, send, receive in the terminal)
 - Output raw response bodies to stdout so output is pipeable to `jq` and other tools
+- Support request chaining — run requests in sequence, passing extracted response values forward
 - Single static binary, no runtime dependencies
 
 ## Non-Goals (v1)
@@ -23,7 +24,6 @@ The tool is designed to integrate naturally with a Neovim + git workflow, includ
 - Test assertions
 - Auth flows beyond static header values (no OAuth)
 - TUI or GUI of any kind
-- Request chaining
 
 ---
 
@@ -58,6 +58,8 @@ Requests live wherever the user wants — typically a `.requests/` directory in 
     update-profile.toml
   ws/
     subscribe-events.toml
+  flows/
+    create-and-fetch-user.chain.toml
 ```
 
 ---
@@ -115,6 +117,34 @@ await_response = false
 ```
 
 If `[[messages]]` is omitted, the tool drops directly into interactive mode after connecting.
+
+### Chain File (`*.chain.toml`)
+
+A chain file defines a sequence of requests to run in order, with value extraction between steps.
+
+```toml
+name = "Create and fetch user"
+
+[[steps]]
+request = "auth/login.toml"
+[steps.extract]
+token = "access_token"
+
+[[steps]]
+request = "users/create-user.toml"
+[steps.extract]
+user_id = "data.id"
+
+[[steps]]
+request = "users/get-profile.toml"
+```
+
+Each step references an existing request file. The `[steps.extract]` table maps variable names to dot-paths into the JSON response body. Extracted values merge into the variable pool and are available to all subsequent steps.
+
+Dot-path examples:
+- `access_token` — top-level key
+- `data.id` — nested key
+- `data.users.0.name` — array index access
 
 ### Environment File (`envs/<name>.toml`)
 
@@ -196,6 +226,35 @@ req ws .requests/ws/subscribe-events.toml --env local
 | `--no-interactive` | Send defined messages only, then disconnect (useful for scripting) |
 | `--timeout <duration>` | Connection and await_response timeout (default: `30s`) |
 
+#### `req chain <file> [flags]`
+
+Runs a chain file — executes requests in sequence, extracting values between steps.
+
+```
+req chain .requests/flows/create-and-fetch-user.chain.toml
+req chain .requests/flows/create-and-fetch-user.chain.toml --env staging
+```
+
+**Behavior:**
+
+1. Parses the chain file and validates all referenced request files exist
+2. Executes each step in order, resolving variables before each request
+3. After each step, extracts values from the JSON response body using dot-paths
+4. Extracted values are added to the variable pool for subsequent steps
+5. Only the last step's response body is written to stdout
+6. With `--verbose`, all steps' request/response details are printed to stderr
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `--env <name>` | Load environment from `.requests/envs/<name>.toml` |
+| `--var <key=value>` | Override or inject a single variable (repeatable) |
+| `--verbose` | Print all steps' request details and intermediate responses to stderr |
+| `--timeout <duration>` | Per-request timeout (default: `30s`) |
+
+**Exit code:** `0` if all steps return HTTP 2xx; `1` if any step fails (stops execution at the first failure).
+
 #### `req init`
 
 Scaffolds a `.requests/` directory in the current working directory with example files.
@@ -224,8 +283,9 @@ Variables use `{{variable_name}}` syntax throughout request files (url, headers,
 **Resolution order (highest to lowest priority):**
 
 1. `--var` flags passed at runtime
-2. Environment file loaded via `--env`
-3. Error if variable is still unresolved
+2. Extracted values from previous chain steps (when running `req chain`)
+3. Environment file loaded via `--env`
+4. Error if variable is still unresolved
 
 **Strict resolution:** All `{{variables}}` present in the request file must resolve. There is no lazy evaluation — if a variable appears anywhere in the file, it must have a value. This prevents subtle bugs where a variable silently fails to resolve.
 
@@ -295,12 +355,15 @@ req/
     root.go         # cobra root command, global flags
     run.go          # `req run` command
     ws.go           # `req ws` command
+    chain.go        # `req chain` command
     init.go         # `req init` command
   internal/
     loader/
       toml.go       # request file and env file parsing
     interpolate/
       vars.go       # {{variable}} substitution
+    extract/
+      dotpath.go    # dot-path value extraction from JSON responses
     runner/
       client.go     # HTTP request execution
     ws/
