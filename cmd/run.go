@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/taratani21/req/internal/interpolate"
@@ -51,8 +53,26 @@ func runRequest(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Resolve variables (cli > variant > extracted > env; no extracted or variant for single run)
-	resolved := interpolate.ResolveVars(cliVars, nil, nil, envVars)
+	// Look up the selected variant, if any
+	var variantVars map[string]string
+	if variantName != "" {
+		v, ok := req.Variants[variantName]
+		if !ok {
+			available := make([]string, 0, len(req.Variants))
+			for name := range req.Variants {
+				available = append(available, name)
+			}
+			sort.Strings(available)
+			if len(available) == 0 {
+				return fmt.Errorf("unknown variant %q (this request defines no variants)", variantName)
+			}
+			return fmt.Errorf("unknown variant %q (available: %s)", variantName, strings.Join(available, ", "))
+		}
+		variantVars = v
+	}
+
+	// Resolve variables (cli > variant > extracted > env, no extracted for single run)
+	resolved := interpolate.ResolveVars(cliVars, variantVars, nil, envVars)
 
 	// Interpolate all fields
 	url, headers, query, body, err := interpolate.InterpolateRequest(

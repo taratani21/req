@@ -937,3 +937,97 @@ await_response = false
 		}
 	}
 }
+
+func TestRun_Variant(t *testing.T) {
+	server := newTestServer(t)
+	defer server.Close()
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "req.toml"), fmt.Sprintf(`
+name = "Variant run"
+type = "http"
+method = "GET"
+url = "%s/echo"
+
+[query]
+role = "{{role}}"
+
+[variants.admin]
+role = "admin"
+
+[variants.viewer]
+role = "viewer"
+`, server.URL))
+
+	stdout, _, exitCode := runReq("run", filepath.Join(dir, "req.toml"), "--variant", "admin")
+	if exitCode != 0 {
+		t.Fatalf("exit code = %d", exitCode)
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(stdout), &resp); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	query, _ := resp["query"].(map[string]interface{})
+	roleVal, _ := query["role"].([]interface{})
+	if len(roleVal) == 0 || roleVal[0] != "admin" {
+		t.Errorf("role = %v, want [admin]", query["role"])
+	}
+}
+
+func TestRun_UnknownVariant(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "req.toml"), `
+name = "Variant run"
+type = "http"
+method = "GET"
+url = "http://example.com"
+
+[variants.admin]
+role = "admin"
+`)
+
+	_, stderr, exitCode := runReq("run", filepath.Join(dir, "req.toml"), "--variant", "bogus")
+	if exitCode == 0 {
+		t.Fatal("expected non-zero exit code for unknown variant")
+	}
+	if !strings.Contains(stderr, "unknown variant") {
+		t.Errorf("stderr should mention unknown variant, got: %s", stderr)
+	}
+	if !strings.Contains(stderr, "admin") {
+		t.Errorf("stderr should list available variants, got: %s", stderr)
+	}
+}
+
+func TestRun_VarOverridesVariant(t *testing.T) {
+	server := newTestServer(t)
+	defer server.Close()
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "req.toml"), fmt.Sprintf(`
+name = "Override variant"
+type = "http"
+method = "GET"
+url = "%s/echo"
+
+[query]
+role = "{{role}}"
+
+[variants.admin]
+role = "admin"
+`, server.URL))
+
+	stdout, _, exitCode := runReq("run", filepath.Join(dir, "req.toml"),
+		"--variant", "admin", "--var", "role=custom")
+	if exitCode != 0 {
+		t.Fatalf("exit code = %d", exitCode)
+	}
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(stdout), &resp); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	query, _ := resp["query"].(map[string]interface{})
+	roleVal, _ := query["role"].([]interface{})
+	if len(roleVal) == 0 || roleVal[0] != "custom" {
+		t.Errorf("role = %v, want [custom] (--var should override --variant)", query["role"])
+	}
+}
