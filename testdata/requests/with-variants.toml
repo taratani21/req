@@ -1,0 +1,12 @@
+name = "Variant demo"
+type = "websocket"
+url = "wss://example.com/chan"
+
+[query]
+role = "{{role}}"
+
+[variants.admin]
+role = "admin"
+
+[variants.viewer]
+role = "viewer"

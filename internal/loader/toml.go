@@ -8,14 +8,15 @@ import (
 )
 
 type Request struct {
-	Name     string            `toml:"name"`
-	Type     string            `toml:"type"`
-	Method   string            `toml:"method"`
-	URL      string            `toml:"url"`
-	Headers  map[string]string `toml:"headers"`
-	Query    map[string]string `toml:"query"`
-	Body     Body              `toml:"body"`
-	Messages []Message         `toml:"messages"`
+	Name     string                       `toml:"name"`
+	Type     string                       `toml:"type"`
+	Method   string                       `toml:"method"`
+	URL      string                       `toml:"url"`
+	Headers  map[string]string            `toml:"headers"`
+	Query    map[string]string            `toml:"query"`
+	Body     Body                         `toml:"body"`
+	Messages []Message                    `toml:"messages"`
+	Variants map[string]map[string]string `toml:"variants"`
 }
 
 type Body struct {

@@ -148,3 +148,19 @@ func TestLoadChain_FileNotFound(t *testing.T) {
 		t.Error("expected error for missing file")
 	}
 }
+
+func TestLoadRequest_WithVariants(t *testing.T) {
+	req, err := LoadRequest("../../testdata/requests/with-variants.toml")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(req.Variants) != 2 {
+		t.Fatalf("variants count = %d, want 2", len(req.Variants))
+	}
+	if req.Variants["admin"]["role"] != "admin" {
+		t.Errorf("variants.admin.role = %q, want %q", req.Variants["admin"]["role"], "admin")
+	}
+	if req.Variants["viewer"]["role"] != "viewer" {
+		t.Errorf("variants.viewer.role = %q, want %q", req.Variants["viewer"]["role"], "viewer")
+	}
+}
