@@ -51,7 +51,7 @@ func runRequest(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Resolve variables (cli > env, no extracted vars for single run)
+	// Resolve variables (cli > variant > extracted > env; no extracted or variant for single run)
 	resolved := interpolate.ResolveVars(cliVars, nil, nil, envVars)
 
 	// Interpolate all fields
