@@ -1079,3 +1079,68 @@ role = "viewer"
 		t.Errorf("expected role=viewer in query, got: %q", got)
 	}
 }
+
+func TestChain_Variant_SilentSkip(t *testing.T) {
+	server := newTestServer(t)
+	defer server.Close()
+
+	dir := t.TempDir()
+
+	// Step 1: no variants defined — uses base_url from env only
+	writeFile(t, filepath.Join(dir, "login.toml"), `
+name = "Login"
+type = "http"
+method = "POST"
+url = "{{base_url}}/login"
+
+[headers]
+Content-Type = "application/json"
+
+[body]
+data = '{"username": "test"}'
+`)
+
+	// Step 2: defines [variants.staging] setting user_id=42
+	writeFile(t, filepath.Join(dir, "get-user.toml"), `
+name = "Get user"
+type = "http"
+method = "GET"
+url = "{{base_url}}/users/{{user_id}}"
+
+[headers]
+Authorization = "Bearer {{token}}"
+
+[variants.staging]
+user_id = "42"
+`)
+
+	writeFile(t, filepath.Join(dir, "envs", "test.toml"), fmt.Sprintf(`
+base_url = "%s"
+`, server.URL))
+
+	writeFile(t, filepath.Join(dir, "flow.chain.toml"), `
+name = "Login + get user"
+
+[[steps]]
+request = "login.toml"
+[steps.extract]
+token = "access_token"
+
+[[steps]]
+request = "get-user.toml"
+`)
+
+	stdout, stderr, exitCode := runReq("chain", filepath.Join(dir, "flow.chain.toml"),
+		"--env", "test", "--variant", "staging")
+	if exitCode != 0 {
+		t.Fatalf("exit code = %d, stderr: %s", exitCode, stderr)
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(stdout), &resp); err != nil {
+		t.Fatalf("invalid JSON: %v\nstdout: %s", err, stdout)
+	}
+	if resp["id"] != "42" {
+		t.Errorf("id = %v, want 42 (variant should supply user_id to step 2)", resp["id"])
+	}
+}
