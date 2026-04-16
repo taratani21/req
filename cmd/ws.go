@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -98,14 +99,22 @@ func runWebSocket(cmd *cobra.Command, args []string) error {
 	}
 
 	// Connect
-	conn, err := ws.Connect(wsURL, headers, timeout)
+	conn, resp, err := ws.Connect(wsURL, headers, timeout)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
+	var trace io.Writer
 	if verbose {
-		fmt.Fprintln(os.Stderr, "Connected.")
+		trace = os.Stderr
+		if resp != nil {
+			fmt.Fprintf(os.Stderr, "HTTP %s\n", resp.Status)
+			for k, v := range resp.Header {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", k, v[0])
+			}
+			fmt.Fprintln(os.Stderr)
+		}
 	}
 
 	// Send predefined messages
@@ -122,7 +131,7 @@ func runWebSocket(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		if err := ws.SendMessages(conn, messages, timeout); err != nil {
+		if err := ws.SendMessages(conn, messages, timeout, trace); err != nil {
 			return err
 		}
 	}
@@ -133,5 +142,5 @@ func runWebSocket(cmd *cobra.Command, args []string) error {
 	}
 
 	// Enter interactive mode
-	return ws.Interactive(conn, os.Stdin, os.Stdout)
+	return ws.Interactive(conn, os.Stdin, os.Stdout, trace)
 }

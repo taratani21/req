@@ -883,3 +883,57 @@ token = "{{token}}"
 		t.Errorf("expected token=secret-xyz in query, got: %q", got)
 	}
 }
+
+func TestWS_VerboseShowsHandshakeAndSentMessages(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		_, _, _ = conn.ReadMessage()
+		conn.WriteMessage(websocket.TextMessage, []byte(`{"ok": true}`))
+		_, _, _ = conn.ReadMessage()
+	}))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "ws.toml"), fmt.Sprintf(`
+name = "WS verbose"
+type = "websocket"
+url = "%s/chan"
+
+[query]
+channel = "updates"
+
+[[messages]]
+payload = '{"type": "subscribe"}'
+await_response = true
+
+[[messages]]
+payload = '{"type": "ping"}'
+await_response = false
+`, wsURL))
+
+	_, stderr, exitCode := runReq("ws", filepath.Join(dir, "ws.toml"), "--no-interactive", "--verbose")
+	if exitCode != 0 {
+		t.Fatalf("exit code = %d, stderr: %s", exitCode, stderr)
+	}
+
+	checks := []string{
+		"channel=updates",
+		"HTTP 101",
+		`→ {"type": "subscribe"}`,
+		`← {"ok": true}`,
+		`→ {"type": "ping"}`,
+	}
+	for _, want := range checks {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr missing %q\nfull stderr:\n%s", want, stderr)
+		}
+	}
+}

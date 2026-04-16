@@ -17,7 +17,7 @@ type Message struct {
 	AwaitResponse bool
 }
 
-func Connect(url string, headers map[string]string, timeout time.Duration) (*websocket.Conn, error) {
+func Connect(url string, headers map[string]string, timeout time.Duration) (*websocket.Conn, *http.Response, error) {
 	dialer := websocket.Dialer{
 		HandshakeTimeout: timeout,
 	}
@@ -27,33 +27,39 @@ func Connect(url string, headers map[string]string, timeout time.Duration) (*web
 		reqHeaders.Set(k, v)
 	}
 
-	conn, _, err := dialer.Dial(url, reqHeaders)
+	conn, resp, err := dialer.Dial(url, reqHeaders)
 	if err != nil {
-		return nil, fmt.Errorf("websocket connect: %w", err)
+		return nil, resp, fmt.Errorf("websocket connect: %w", err)
 	}
 
-	return conn, nil
+	return conn, resp, nil
 }
 
-func SendMessages(conn *websocket.Conn, messages []Message, timeout time.Duration) error {
+func SendMessages(conn *websocket.Conn, messages []Message, timeout time.Duration, trace io.Writer) error {
 	for i, msg := range messages {
+		if trace != nil {
+			fmt.Fprintf(trace, "→ %s\n", msg.Payload)
+		}
 		if err := conn.WriteMessage(websocket.TextMessage, []byte(msg.Payload)); err != nil {
 			return fmt.Errorf("sending message %d: %w", i+1, err)
 		}
 
 		if msg.AwaitResponse {
 			conn.SetReadDeadline(time.Now().Add(timeout))
-			_, _, err := conn.ReadMessage()
+			_, payload, err := conn.ReadMessage()
 			if err != nil {
 				return fmt.Errorf("awaiting response for message %d: %w", i+1, err)
 			}
 			conn.SetReadDeadline(time.Time{})
+			if trace != nil {
+				fmt.Fprintf(trace, "← %s\n", payload)
+			}
 		}
 	}
 	return nil
 }
 
-func Interactive(conn *websocket.Conn, in io.Reader, out io.Writer) error {
+func Interactive(conn *websocket.Conn, in io.Reader, out io.Writer, trace io.Writer) error {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 	defer signal.Stop(interrupt)
@@ -68,6 +74,9 @@ func Interactive(conn *websocket.Conn, in io.Reader, out io.Writer) error {
 				return
 			}
 			fmt.Fprintf(out, "%s\n", message)
+			if trace != nil {
+				fmt.Fprintf(trace, "← %s\n", message)
+			}
 		}
 	}()
 
@@ -82,6 +91,9 @@ func Interactive(conn *websocket.Conn, in io.Reader, out io.Writer) error {
 	for {
 		select {
 		case line := <-inputCh:
+			if trace != nil {
+				fmt.Fprintf(trace, "→ %s\n", line)
+			}
 			if err := conn.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
 				return fmt.Errorf("sending message: %w", err)
 			}

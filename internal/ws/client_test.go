@@ -31,7 +31,7 @@ func TestConnect(t *testing.T) {
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 
-	conn, err := Connect(wsURL, nil, 5*time.Second)
+	conn, _, err := Connect(wsURL, nil, 5*time.Second)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestConnect_WithHeaders(t *testing.T) {
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 
 	headers := map[string]string{"Authorization": "Bearer test-token"}
-	conn, err := Connect(wsURL, headers, 5*time.Second)
+	conn, _, err := Connect(wsURL, headers, 5*time.Second)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestSendMessages(t *testing.T) {
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 
-	conn, err := Connect(wsURL, nil, 5*time.Second)
+	conn, _, err := Connect(wsURL, nil, 5*time.Second)
 	if err != nil {
 		t.Fatalf("connect error: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestSendMessages(t *testing.T) {
 		{Payload: `{"type": "ping"}`, AwaitResponse: false},
 	}
 
-	err = SendMessages(conn, messages, 5*time.Second)
+	err = SendMessages(conn, messages, 5*time.Second, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
