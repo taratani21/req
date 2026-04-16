@@ -7,10 +7,11 @@ import (
 )
 
 var (
-	envName string
-	vars    []string
-	verbose bool
-	timeout time.Duration
+	envName     string
+	vars        []string
+	verbose     bool
+	timeout     time.Duration
+	variantName string
 )
 
 var rootCmd = &cobra.Command{
@@ -26,6 +27,7 @@ func Execute() error {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&envName, "env", "", "Load environment from .requests/envs/<name>.toml")
 	rootCmd.PersistentFlags().StringArrayVar(&vars, "var", nil, "Override or inject a variable (key=value, repeatable)")
+	rootCmd.PersistentFlags().StringVar(&variantName, "variant", "", "Select a named variant from the request file")
 	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Print request details to stderr")
 	rootCmd.PersistentFlags().DurationVar(&timeout, "timeout", 30*time.Second, "Request timeout (e.g. 30s, 5m)")
 }
