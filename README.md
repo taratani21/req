@@ -129,6 +129,41 @@ error: unresolved variable "token" in header "Authorization"
 hint: set it with --var token=<value> or define it in your env file
 ```
 
+## Variants
+
+Variants are named presets of variables defined inside a request file. Use them when a request has a small set of parameterizations (e.g. `role = admin` vs `role = viewer`) that you don't want to spell out with `--var` every run and don't want to fork into separate files.
+
+```toml
+# chat.toml
+name = "Chat"
+type = "websocket"
+url = "wss://{{base_url}}/chat"
+
+[query]
+role = "{{role}}"
+
+[variants.admin]
+role = "admin"
+
+[variants.viewer]
+role = "viewer"
+```
+
+Select one with `--variant <name>`:
+
+```bash
+req ws chat.toml --variant admin --env local
+```
+
+Variants slot into the resolution order between `--var` and extracted chain values:
+
+1. `--var` flags
+2. `--variant` vars
+3. Extracted chain values
+4. Env file
+
+`req chain --variant <name>` applies to every step; if a step's request file doesn't define that variant, the step runs without variant vars (no error).
+
 ## Commands
 
 ### `req run <file>`
@@ -149,6 +184,7 @@ req run .requests/users/get-profile.toml --timeout 5s
 | `--var key=value` | Set or override a variable (repeatable) |
 | `--verbose` | Print request/response details to stderr |
 | `--timeout <duration>` | Request timeout (default: `30s`) |
+| `--variant <name>` | Select a named `[variants.<name>]` block from the request file |
 
 **Output:**
 - Response body &rarr; **stdout** (pipeable)
@@ -173,6 +209,7 @@ After connecting, if the request file defines `[[messages]]`, they are sent in o
 | `--no-interactive` | Send defined messages only, then disconnect |
 | `--verbose` | Print connection details to stderr |
 | `--timeout <duration>` | Connection/await timeout (default: `30s`) |
+| `--variant <name>` | Select a named `[variants.<name>]` block from the request file |
 
 Press `Ctrl+C` to disconnect cleanly.
 
@@ -191,6 +228,7 @@ req chain .requests/flows/create-and-fetch.chain.toml --verbose
 | `--var key=value` | Set or override a variable |
 | `--verbose` | Print all steps' details to stderr |
 | `--timeout <duration>` | Per-request timeout (default: `30s`) |
+| `--variant <name>` | Select a named `[variants.<name>]` block from the request file |
 
 **Output:**
 - Only the **last step's** response goes to stdout
@@ -236,6 +274,7 @@ data = '''
 - `[headers]`: key-value pairs, set `Content-Type` here
 - `[query]`: appended to the URL as query parameters
 - `[body]`: optional, `data` holds the raw request body
+- `[variants.<name>]`: optional named preset of variables (see [Variants](#variants))
 
 ### WebSocket Request
 
@@ -264,6 +303,7 @@ await_response = false
 - `[[messages]]`: optional, sent in order after connecting
 - `await_response`: if `true`, waits for one incoming message before sending the next
 - If `[[messages]]` is omitted, drops directly into interactive mode
+- `[variants.<name>]`: optional named preset of variables (see [Variants](#variants))
 
 ### Chain File
 
