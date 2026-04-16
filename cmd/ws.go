@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -57,7 +58,7 @@ func runWebSocket(cmd *cobra.Command, args []string) error {
 	resolved := interpolate.ResolveVars(cliVars, nil, envVars)
 
 	// Interpolate URL and headers
-	url, err := interpolate.Interpolate(req.URL, resolved)
+	wsURL, err := interpolate.Interpolate(req.URL, resolved)
 	if err != nil {
 		return fmt.Errorf("in url: %w", err)
 	}
@@ -70,8 +71,26 @@ func runWebSocket(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Append query params to URL
+	if len(req.Query) > 0 {
+		u, err := url.Parse(wsURL)
+		if err != nil {
+			return fmt.Errorf("parsing url: %w", err)
+		}
+		q := u.Query()
+		for k, v := range req.Query {
+			iv, err := interpolate.Interpolate(v, resolved)
+			if err != nil {
+				return fmt.Errorf("in query param %q: %w", k, err)
+			}
+			q.Set(k, iv)
+		}
+		u.RawQuery = q.Encode()
+		wsURL = u.String()
+	}
+
 	if verbose {
-		fmt.Fprintf(os.Stderr, "WS %s\n", url)
+		fmt.Fprintf(os.Stderr, "WS %s\n", wsURL)
 		for k, v := range headers {
 			fmt.Fprintf(os.Stderr, "%s: %s\n", k, v)
 		}
@@ -79,7 +98,7 @@ func runWebSocket(cmd *cobra.Command, args []string) error {
 	}
 
 	// Connect
-	conn, err := ws.Connect(url, headers, timeout)
+	conn, err := ws.Connect(wsURL, headers, timeout)
 	if err != nil {
 		return err
 	}

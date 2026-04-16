@@ -247,6 +247,9 @@ url = "wss://{{base_url}}/events"
 [headers]
 Authorization = "Bearer {{token}}"
 
+[query]
+token = "{{token}}"
+
 [[messages]]
 payload = '{"type": "subscribe", "channel": "updates"}'
 await_response = true
@@ -257,6 +260,7 @@ await_response = false
 ```
 
 - `type` must be `"websocket"`
+- `[query]`: optional, appended to the URL as query parameters on the upgrade request
 - `[[messages]]`: optional, sent in order after connecting
 - `await_response`: if `true`, waits for one incoming message before sending the next
 - If `[[messages]]` is omitted, drops directly into interactive mode

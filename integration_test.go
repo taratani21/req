@@ -9,7 +9,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+
+	"github.com/gorilla/websocket"
 )
 
 var binaryPath string
@@ -787,5 +790,96 @@ func TestInit_ErrorIfAlreadyExists(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "already exists") {
 		t.Errorf("output should mention already exists, got: %s", out)
+	}
+}
+
+// --- req ws tests ---
+
+func TestWS_QueryParams(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	var mu sync.Mutex
+	var seenQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seenQuery = r.URL.RawQuery
+		mu.Unlock()
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		conn.Close()
+	}))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "ws.toml"), fmt.Sprintf(`
+name = "WS with query"
+type = "websocket"
+url = "%s/chan"
+
+[query]
+token = "abc123"
+channel = "updates"
+`, wsURL))
+
+	_, stderr, exitCode := runReq("ws", filepath.Join(dir, "ws.toml"), "--no-interactive")
+	if exitCode != 0 {
+		t.Fatalf("exit code = %d, stderr: %s", exitCode, stderr)
+	}
+
+	mu.Lock()
+	got := seenQuery
+	mu.Unlock()
+	if !strings.Contains(got, "token=abc123") {
+		t.Errorf("expected token=abc123 in query, got: %q", got)
+	}
+	if !strings.Contains(got, "channel=updates") {
+		t.Errorf("expected channel=updates in query, got: %q", got)
+	}
+}
+
+func TestWS_QueryParamsWithVarInterpolation(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	var mu sync.Mutex
+	var seenQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seenQuery = r.URL.RawQuery
+		mu.Unlock()
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		conn.Close()
+	}))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "ws.toml"), fmt.Sprintf(`
+name = "WS with interpolated query"
+type = "websocket"
+url = "%s/chan"
+
+[query]
+token = "{{token}}"
+`, wsURL))
+
+	_, stderr, exitCode := runReq("ws", filepath.Join(dir, "ws.toml"),
+		"--no-interactive", "--var", "token=secret-xyz")
+	if exitCode != 0 {
+		t.Fatalf("exit code = %d, stderr: %s", exitCode, stderr)
+	}
+
+	mu.Lock()
+	got := seenQuery
+	mu.Unlock()
+	if !strings.Contains(got, "token=secret-xyz") {
+		t.Errorf("expected token=secret-xyz in query, got: %q", got)
 	}
 }
