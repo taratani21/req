@@ -279,3 +279,56 @@ func TestLoadEnvHierarchical_StopsAtDotRequests(t *testing.T) {
 		t.Errorf("outside key leaked from above .requests/: got %q", env["outside"])
 	}
 }
+
+func TestLoadEnvHierarchical_ThreeLevelMerge(t *testing.T) {
+	tmp := t.TempDir()
+	requestsDir := filepath.Join(tmp, ".requests")
+
+	// Level 1 (outermost): .requests/envs/local.toml
+	if err := os.MkdirAll(filepath.Join(requestsDir, "envs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rootEnv := `a = "from-root"
+b = "from-root"
+c = "from-root"
+`
+	if err := os.WriteFile(filepath.Join(requestsDir, "envs", "local.toml"), []byte(rootEnv), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Level 2: .requests/users/envs/local.toml
+	users := filepath.Join(requestsDir, "users")
+	if err := os.MkdirAll(filepath.Join(users, "envs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	midEnv := `b = "from-users"
+c = "from-users"
+`
+	if err := os.WriteFile(filepath.Join(users, "envs", "local.toml"), []byte(midEnv), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Level 3 (start dir): .requests/users/admin/envs/local.toml
+	admin := filepath.Join(users, "admin")
+	if err := os.MkdirAll(filepath.Join(admin, "envs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	leafEnv := `c = "from-admin"`
+	if err := os.WriteFile(filepath.Join(admin, "envs", "local.toml"), []byte(leafEnv), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	env, err := LoadEnvHierarchical(admin, "local")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if env["a"] != "from-root" {
+		t.Errorf("a = %q, want %q (only defined at root)", env["a"], "from-root")
+	}
+	if env["b"] != "from-users" {
+		t.Errorf("b = %q, want %q (users overrides root)", env["b"], "from-users")
+	}
+	if env["c"] != "from-admin" {
+		t.Errorf("c = %q, want %q (admin overrides users and root)", env["c"], "from-admin")
+	}
+}
