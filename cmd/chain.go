@@ -36,8 +36,7 @@ func runChain(cmd *cobra.Command, args []string) error {
 	// Load env file if specified
 	var envVars map[string]string
 	if envName != "" {
-		envPath := filepath.Join(chainDir, "envs", envName+".toml")
-		envVars, err = loader.LoadEnv(envPath)
+		envVars, err = loader.LoadEnvHierarchical(chainDir, envName)
 		if err != nil {
 			return fmt.Errorf("loading env %q: %w", envName, err)
 		}
