@@ -3,6 +3,7 @@ package loader
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
@@ -83,4 +84,9 @@ func LoadChain(path string) (*ChainFile, error) {
 	}
 
 	return &chain, nil
+}
+
+func LoadEnvHierarchical(startDir, name string) (map[string]string, error) {
+	path := filepath.Join(startDir, "envs", name+".toml")
+	return LoadEnv(path)
 }

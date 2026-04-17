@@ -1,6 +1,8 @@
 package loader
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -162,5 +164,24 @@ func TestLoadRequest_WithVariants(t *testing.T) {
 	}
 	if req.Variants["viewer"]["role"] != "viewer" {
 		t.Errorf("variants.viewer.role = %q, want %q", req.Variants["viewer"]["role"], "viewer")
+	}
+}
+
+func TestLoadEnvHierarchical_SingleFileAtStartDir(t *testing.T) {
+	dir := t.TempDir()
+	envsDir := filepath.Join(dir, "envs")
+	if err := os.MkdirAll(envsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(envsDir, "local.toml"), []byte(`base_url = "http://localhost:8080"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	env, err := LoadEnvHierarchical(dir, "local")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if env["base_url"] != "http://localhost:8080" {
+		t.Errorf("base_url = %q, want %q", env["base_url"], "http://localhost:8080")
 	}
 }
