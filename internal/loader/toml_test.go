@@ -185,3 +185,26 @@ func TestLoadEnvHierarchical_SingleFileAtStartDir(t *testing.T) {
 		t.Errorf("base_url = %q, want %q", env["base_url"], "http://localhost:8080")
 	}
 }
+
+func TestLoadEnvHierarchical_FileAtAncestor(t *testing.T) {
+	root := t.TempDir()
+	envsDir := filepath.Join(root, "envs")
+	if err := os.MkdirAll(envsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(envsDir, "local.toml"), []byte(`base_url = "http://root"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(root, "users")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	env, err := LoadEnvHierarchical(sub, "local")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if env["base_url"] != "http://root" {
+		t.Errorf("base_url = %q, want %q", env["base_url"], "http://root")
+	}
+}
