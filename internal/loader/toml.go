@@ -88,16 +88,31 @@ func LoadChain(path string) (*ChainFile, error) {
 
 func LoadEnvHierarchical(startDir, name string) (map[string]string, error) {
 	filename := name + ".toml"
+	var found []string
 	dir := startDir
 	for {
 		path := filepath.Join(dir, "envs", filename)
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return LoadEnv(path)
+			found = append(found, path)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return nil, fmt.Errorf("no envs/%s.toml found in %s or any ancestor", name, startDir)
+			break
 		}
 		dir = parent
 	}
+	if len(found) == 0 {
+		return nil, fmt.Errorf("no envs/%s.toml found in %s or any ancestor", name, startDir)
+	}
+	merged := make(map[string]string)
+	for i := len(found) - 1; i >= 0; i-- {
+		e, err := LoadEnv(found[i])
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range e {
+			merged[k] = v
+		}
+	}
+	return merged, nil
 }

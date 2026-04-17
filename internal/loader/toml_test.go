@@ -208,3 +208,36 @@ func TestLoadEnvHierarchical_FileAtAncestor(t *testing.T) {
 		t.Errorf("base_url = %q, want %q", env["base_url"], "http://root")
 	}
 }
+
+func TestLoadEnvHierarchical_NearestWinsMerge(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "envs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rootEnv := `base_url = "http://root"
+token = "root-token"
+`
+	if err := os.WriteFile(filepath.Join(root, "envs", "local.toml"), []byte(rootEnv), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	admin := filepath.Join(root, "admin")
+	if err := os.MkdirAll(filepath.Join(admin, "envs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	adminEnv := `token = "admin-token"`
+	if err := os.WriteFile(filepath.Join(admin, "envs", "local.toml"), []byte(adminEnv), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	env, err := LoadEnvHierarchical(admin, "local")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if env["base_url"] != "http://root" {
+		t.Errorf("base_url = %q, want %q", env["base_url"], "http://root")
+	}
+	if env["token"] != "admin-token" {
+		t.Errorf("token = %q, want %q (nearest should win)", env["token"], "admin-token")
+	}
+}
