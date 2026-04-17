@@ -25,7 +25,7 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&envName, "env", "", "Load environment from .requests/envs/<name>.toml")
+	rootCmd.PersistentFlags().StringVar(&envName, "env", "", "Load environment from envs/<name>.toml, merging ancestors up to .requests/")
 	rootCmd.PersistentFlags().StringArrayVar(&vars, "var", nil, "Override or inject a variable (key=value, repeatable)")
 	rootCmd.PersistentFlags().StringVar(&variantName, "variant", "", "Select a named variant from the request file")
 	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "Print request details to stderr")
