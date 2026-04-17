@@ -3,6 +3,7 @@ package loader
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -330,5 +331,46 @@ c = "from-users"
 	}
 	if env["c"] != "from-admin" {
 		t.Errorf("c = %q, want %q (admin overrides users and root)", env["c"], "from-admin")
+	}
+}
+
+func TestLoadEnvHierarchical_NoFileFound_WithRequestsBoundary(t *testing.T) {
+	tmp := t.TempDir()
+	requestsDir := filepath.Join(tmp, ".requests")
+	users := filepath.Join(requestsDir, "users")
+	if err := os.MkdirAll(users, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := LoadEnvHierarchical(users, "missing")
+	if err == nil {
+		t.Fatal("expected error for missing env, got nil")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "no envs/missing.toml found") {
+		t.Errorf("error missing prefix: %q", msg)
+	}
+	if !strings.Contains(msg, ".requests/") {
+		t.Errorf("error should mention .requests/ boundary: %q", msg)
+	}
+}
+
+func TestLoadEnvHierarchical_NoFileFound_NoRequestsBoundary(t *testing.T) {
+	tmp := t.TempDir()
+	sub := filepath.Join(tmp, "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := LoadEnvHierarchical(sub, "missing")
+	if err == nil {
+		t.Fatal("expected error for missing env, got nil")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "no envs/missing.toml found") {
+		t.Errorf("error missing prefix: %q", msg)
+	}
+	if strings.Contains(msg, ".requests/") {
+		t.Errorf("error should NOT mention .requests/ when boundary not hit: %q", msg)
 	}
 }
