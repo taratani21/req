@@ -241,3 +241,41 @@ token = "root-token"
 		t.Errorf("token = %q, want %q (nearest should win)", env["token"], "admin-token")
 	}
 }
+
+func TestLoadEnvHierarchical_StopsAtDotRequests(t *testing.T) {
+	tmp := t.TempDir()
+	// Layout:
+	//   tmp/envs/local.toml        <- MUST NOT be loaded (above .requests/)
+	//   tmp/.requests/envs/local.toml
+	//   tmp/.requests/users/       <- start dir
+	if err := os.MkdirAll(filepath.Join(tmp, "envs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "envs", "local.toml"), []byte(`outside = "leaked"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	requestsDir := filepath.Join(tmp, ".requests")
+	if err := os.MkdirAll(filepath.Join(requestsDir, "envs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(requestsDir, "envs", "local.toml"), []byte(`base_url = "http://in-project"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	users := filepath.Join(requestsDir, "users")
+	if err := os.MkdirAll(users, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	env, err := LoadEnvHierarchical(users, "local")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if env["base_url"] != "http://in-project" {
+		t.Errorf("base_url = %q, want %q", env["base_url"], "http://in-project")
+	}
+	if _, ok := env["outside"]; ok {
+		t.Errorf("outside key leaked from above .requests/: got %q", env["outside"])
+	}
+}
