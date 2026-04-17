@@ -38,8 +38,7 @@ func runRequest(cmd *cobra.Command, args []string) error {
 	// Load env file if specified
 	var envVars map[string]string
 	if envName != "" {
-		envPath := filepath.Join(filepath.Dir(reqFile), "envs", envName+".toml")
-		envVars, err = loader.LoadEnv(envPath)
+		envVars, err = loader.LoadEnvHierarchical(filepath.Dir(reqFile), envName)
 		if err != nil {
 			return fmt.Errorf("loading env %q: %w", envName, err)
 		}
