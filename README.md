@@ -77,7 +77,7 @@ req run .requests/get-users.toml --env local | jq '.data[0].name'
 
 ## Environment Files
 
-Environment files hold variables that change between environments (local, staging, prod). They live in `.requests/envs/` and are loaded with `--env <name>`.
+Environment files hold variables that change between environments (local, staging, prod). They live in an `envs/` directory and are loaded with `--env <name>`.
 
 ```toml
 # .requests/envs/staging.toml
@@ -85,6 +85,24 @@ base_url = "https://staging.api.example.com"
 token = "staging-token-xyz"
 user_id = "42"
 ```
+
+### Hierarchical lookup
+
+`req` walks upward from the request file's directory, collecting every `envs/<name>.toml` it finds. The walk stops after processing a `.requests/` directory (inclusive), or at filesystem root. All found files are merged into one set of variables; nearer files override farther ones per-key.
+
+```
+.requests/
+  envs/
+    local.toml        # base_url, token
+  admin/
+    envs/
+      local.toml      # token (overrides root's token)
+    delete-user.toml
+```
+
+Running `req run .requests/admin/delete-user.toml --env local` loads both files: `base_url` comes from the root, `token` comes from `admin/` (nearest wins).
+
+If `--env <name>` is passed but no matching file exists anywhere in the walk, `req` exits with an error naming the search path.
 
 ### Keep secrets out of git
 
