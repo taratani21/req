@@ -374,3 +374,23 @@ func TestLoadEnvHierarchical_NoFileFound_NoRequestsBoundary(t *testing.T) {
 		t.Errorf("error should NOT mention .requests/ when boundary not hit: %q", msg)
 	}
 }
+
+func TestLoadEnvHierarchical_ParseErrorIncludesPath(t *testing.T) {
+	tmp := t.TempDir()
+	envsDir := filepath.Join(tmp, "envs")
+	if err := os.MkdirAll(envsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	bad := filepath.Join(envsDir, "local.toml")
+	if err := os.WriteFile(bad, []byte("this is not = valid = toml\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := LoadEnvHierarchical(tmp, "local")
+	if err == nil {
+		t.Fatal("expected parse error, got nil")
+	}
+	if !strings.Contains(err.Error(), bad) {
+		t.Errorf("error should name offending path %q, got %q", bad, err.Error())
+	}
+}
